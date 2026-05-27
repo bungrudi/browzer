@@ -43,6 +43,19 @@ def _components_ready() -> bool:
     )
 
 
+async def _ensure_attached(tab_id: int) -> None:
+    """Ensure Browzer has an active debugger attachment for a tab.
+
+    The Codex bridge debugger attachment can be lost when another bridge
+    client touches the same tab/session or after transport reconnects. Tool
+    handlers should call this before every CDP-dependent operation instead of
+    assuming the attachment from browser_start is still alive.
+    """
+    if _tab_manager is None:
+        raise RuntimeError("Tab manager not initialized")
+    await _tab_manager.claim_and_attach(tab_id)
+
+
 def create_server(config: BrowzerConfig | None = None) -> FastMCP:
     """Create and configure the Browzer MCP server."""
     cfg = config or BrowzerConfig.from_env()
@@ -122,6 +135,7 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             if not _components_ready() or _state_engine is None:
                 return {"ok": False, "error": "Server not initialized"}
 
+            await _ensure_attached(tab_id)
             if format.lower() == "json":
                 return await _state_engine.build_json_state(tab_id)
             return await _state_engine.build_text_state(tab_id)
@@ -140,6 +154,7 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             if _vision_client is None:
                 return {"ok": False, "error": "Vision client unavailable"}
 
+            await _ensure_attached(tab_id)
             return await observe(_bridge, _vision_client, tab_id, instruction, system_prompt)
         except Exception as exc:
             logger.exception("browser_observe failed")
@@ -152,6 +167,7 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             if not _components_ready() or _action_engine is None:
                 return {"ok": False, "error": "Server not initialized"}
 
+            await _ensure_attached(tab_id)
             result = await _action_engine.click_ref(tab_id, ref)
             return {"ok": result.ok, "ref": ref, "details": result.details}
         except Exception as exc:
@@ -167,6 +183,7 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             if not _components_ready() or _action_engine is None:
                 return {"ok": False, "error": "Server not initialized"}
 
+            await _ensure_attached(tab_id)
             result = await _action_engine.fill_ref(tab_id, ref, text, submit)
             return {
                 "ok": result.ok,
@@ -193,6 +210,7 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             if not _components_ready() or _action_engine is None:
                 return {"ok": False, "error": "Server not initialized"}
 
+            await _ensure_attached(tab_id)
             result = await _action_engine.scroll(tab_id, direction, pages)
             return {"ok": result.ok, "details": result.details}
         except Exception as exc:
@@ -246,6 +264,7 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             if not _components_ready() or _bridge is None:
                 return {"ok": False, "error": "Server not initialized"}
 
+            await _ensure_attached(tab_id)
             result: dict[str, Any] = await _bridge.execute_cdp(
                 tab_id,
                 "Runtime.evaluate",
@@ -263,6 +282,7 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             if not _components_ready() or _action_engine is None:
                 return {"ok": False, "error": "Server not initialized"}
 
+            await _ensure_attached(tab_id)
             result = await _action_engine.press_key(tab_id, key)
             return {"ok": result.ok, "details": result.details}
         except Exception as exc:

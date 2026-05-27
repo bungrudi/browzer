@@ -18,7 +18,7 @@ class VisionClient:
         self.config = config
         self._client = AsyncOpenAI(
             base_url=config.vision_base_url,
-            api_key=config.vision_api_key,
+            api_key=config.vision_api_key or "not-needed",
             timeout=config.vision_timeout,
         )
 

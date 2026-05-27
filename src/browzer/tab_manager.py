@@ -139,24 +139,24 @@ class TabManager:
                 logger.info(
                     "Reusing tab %d (%s) for %s", existing.id, existing.title, url
                 )
-                # Navigate if URL differs (before attach to avoid page-load detach)
+                # Claim and attach first, then navigate
+                await self._claim_and_attach(existing.id)
                 if existing.url != url:
                     await self.navigate(existing.id, url)
                     existing.url = url
-                await self._claim_and_attach(existing.id)
                 return existing
 
         # Create fresh tab
         return await self._create_and_navigate(url)
 
     async def _create_and_navigate(self, url: str) -> TabInfo:
-        """Create a new tab, navigate to URL, then claim and attach."""
+        """Create a new tab, claim, attach, then navigate."""
         raw = await self._bridge.create_tab()
         tab_id = raw["id"]
         logger.info("Created tab %d", tab_id)
 
-        await self.navigate(tab_id, url)
         await self._claim_and_attach(tab_id)
+        await self.navigate(tab_id, url)
 
         info = TabInfo(
             id=tab_id,
@@ -174,12 +174,17 @@ class TabManager:
     # ------------------------------------------------------------------
 
     async def _claim_and_attach(self, tab_id: int) -> None:
-        """Claim ownership and attach debugger. Always re-attaches."""
-        try:
-            await self._bridge.claim_user_tab(tab_id)
-        except BridgeError as exc:
-            logger.warning("claimUserTab failed for %d: %s", tab_id, exc)
+        """Claim ownership and attach debugger.
 
+        Detaches first to clean any stale state from a previous
+        session or interrupted transport. Then claims and attaches.
+        Errors during claim are NOT suppressed — a failed claim
+        means the tab is in a bad state and subsequent CDP will fail.
+        """
+        # Detach first — idempotent, cleans stale attachments.
+        await self._bridge.detach(tab_id)
+        # Claim + attach — let errors propagate.
+        await self._bridge.claim_user_tab(tab_id)
         await self._bridge.attach(tab_id)
 
         info = self._tabs.get(tab_id)

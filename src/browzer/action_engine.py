@@ -74,6 +74,24 @@ class ActionEngine:
                     "clickCount": 1,
                 },
             )
+            # The Codex bridge may report mouse dispatch success without the
+            # page applying the click (observed on native inputs). Trigger a
+            # DOM click at the same coordinate as a deterministic fallback.
+            await self.bridge.execute_cdp(
+                tab_id,
+                "Runtime.evaluate",
+                {
+                    "expression": (
+                        "((x, y) => {"
+                        "const el = document.elementFromPoint(x, y);"
+                        "if (!el) return 'element_not_found';"
+                        "el.click();"
+                        "return (el.tagName || '').toLowerCase();"
+                        f"}})({x}, {y})"
+                    ),
+                    "returnByValue": True,
+                },
+            )
             await asyncio.sleep(0.5)
             return ActionResult(
                 ok=True,
