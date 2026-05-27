@@ -46,7 +46,7 @@ Never hand-code implementation — always delegate to codex CLI for code generat
 1. **Transport layer** — Codex Chrome bridge client (ws://127.0.0.1:9224 JSON-RPC). Tab ownership, CDP execution, WebSocket lifecycle.
 2. **Semantic browser layer** — DOM/accessibility → compact indexed page state with refs (@e1, @e2). Action engine (click/fill by ref), extract engine.
 3. **Vision mediation layer** — Screenshot capture + configurable OpenAI-compatible vision LLM client. Two modes: mediated (vision describes for text models) and direct (vision drives actions).
-   - **Default vision model: gemini-2.5-flash-lite** (cheap, fast, vision-capable, good for page description and element finding)
+   - **Default vision model: gemini-3.1-flash-lite** (cheapest, fastest vision-capable Gemini — ideal for page description and element finding)
    - Configurable via BROWZER_VISION_BASE_URL / BROWZER_VISION_MODEL
 
 ## v0.1 Must-Have Features (priority order)
@@ -54,11 +54,11 @@ Never hand-code implementation — always delegate to codex CLI for code generat
 ### Feature 1: Vision-enriched text path
 Non-vision models (DeepSeek) get vision-augmented text snapshots.
 - `browser_state` → indexed elements + page text
-- `browser_observe` → screenshot + vision LLM (gemini-2.5-flash-lite) → text description
+- `browser_observe` → screenshot + vision LLM (gemini-3.1-flash-lite) → text description
 - `browser_click_ref` / `browser_fill_ref` → actions by ref
 
 ### Feature 2: Vision-first path
-Vision-capable models drive browser with screenshots + gemini-2.5-flash-lite.
+Vision-capable models drive browser with screenshots + gemini-3.1-flash-lite.
 - `browser_start(mode="vision")` → screenshot + DOM
 - `browser_act(instruction)` → vision LLM → coordinate/ref actions
 
