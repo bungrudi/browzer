@@ -139,11 +139,11 @@ class TabManager:
                 logger.info(
                     "Reusing tab %d (%s) for %s", existing.id, existing.title, url
                 )
-                await self._claim_and_attach(existing.id)
-                # Navigate if URL differs
+                # Navigate if URL differs (before attach to avoid page-load detach)
                 if existing.url != url:
                     await self.navigate(existing.id, url)
                     existing.url = url
+                await self._claim_and_attach(existing.id)
                 return existing
 
         # Create fresh tab
