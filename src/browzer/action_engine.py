@@ -108,6 +108,59 @@ class ActionEngine:
                 details=f"Click failed: {exc}",
             )
 
+    async def hover_ref(self, tab_id: int, ref: str) -> ActionResult:
+        """Hover an element by its ref (e.g., '@e3')."""
+        element = self.element_store.get_element(tab_id, ref)
+        bounds = element.bounds if element else None
+        if not bounds:
+            return ActionResult(
+                ok=False,
+                action="hover",
+                ref=ref,
+                details="Element not found or missing bounds",
+            )
+
+        try:
+            x = float(bounds.get("x", 0)) + (float(bounds.get("width", 0)) / 2)
+            y = float(bounds.get("y", 0)) + (float(bounds.get("height", 0)) / 2)
+            await self.bridge.execute_cdp(
+                tab_id,
+                "Input.dispatchMouseEvent",
+                {"type": "mouseMoved", "x": x, "y": y},
+            )
+            await self.bridge.execute_cdp(
+                tab_id,
+                "Runtime.evaluate",
+                {
+                    "expression": (
+                        "((x, y) => {"
+                        "const el = document.elementFromPoint(x, y);"
+                        "if (!el) return 'element_not_found';"
+                        "for (const type of ['pointerover','pointerenter','mouseover','mouseenter','mousemove']) {"
+                        "el.dispatchEvent(new MouseEvent(type, {bubbles:true, composed:true, clientX:x, clientY:y, view:window}));"
+                        "}"
+                        "return (el.tagName || '').toLowerCase();"
+                        f"}})({x}, {y})"
+                    ),
+                    "returnByValue": True,
+                },
+            )
+            await asyncio.sleep(0.25)
+            return ActionResult(
+                ok=True,
+                action="hover",
+                ref=ref,
+                details=f"Hovered at ({x:.1f}, {y:.1f})",
+                state_delta={"action": "hover", "ref": ref},
+            )
+        except Exception as exc:
+            return ActionResult(
+                ok=False,
+                action="hover",
+                ref=ref,
+                details=f"Hover failed: {exc}",
+            )
+
     async def fill_ref(
         self, tab_id: int, ref: str, text: str, submit: bool = False
     ) -> ActionResult:

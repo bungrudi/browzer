@@ -225,7 +225,7 @@ class StateEngine:
     async def _get_interactive_payload(self, tab_id: int) -> dict[str, Any]:
         expr = r"""
 JSON.stringify((() => {
-  const interactiveRoles = ['button','link','menuitem','option','radio','checkbox','tab','textbox','combobox','slider','spinbutton','searchbox','switch','row','cell','gridcell'];
+  const interactiveRoles = ['button','link','menuitem','menuitemcheckbox','menuitemradio','option','radio','checkbox','tab','textbox','combobox','slider','spinbutton','searchbox','switch','row','cell','gridcell'];
   const nativeInteractive = ['a','button','input','select','textarea','details','summary'];
   const isVisible = (el) => {
     const style = window.getComputedStyle(el);

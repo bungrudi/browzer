@@ -175,6 +175,20 @@ def create_server(config: BrowzerConfig | None = None) -> FastMCP:
             return {"ok": False, "ref": ref, "details": str(exc)}
 
     @mcp.tool()
+    async def browser_hover_ref(tab_id: int, ref: str) -> dict:
+        """Hover an indexed element reference."""
+        try:
+            if not _components_ready() or _action_engine is None:
+                return {"ok": False, "error": "Server not initialized"}
+
+            await _ensure_attached(tab_id)
+            result = await _action_engine.hover_ref(tab_id, ref)
+            return {"ok": result.ok, "ref": ref, "details": result.details}
+        except Exception as exc:
+            logger.exception("browser_hover_ref failed")
+            return {"ok": False, "ref": ref, "details": str(exc)}
+
+    @mcp.tool()
     async def browser_fill_ref(
         tab_id: int, ref: str, text: str, submit: bool = False
     ) -> dict:

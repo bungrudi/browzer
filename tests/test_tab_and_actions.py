@@ -77,3 +77,34 @@ def test_click_ref_dispatches_mouse_and_dom_click_fallback():
     dom_click_call = bridge.calls[-1]
     assert "document.elementFromPoint" in dom_click_call[3]["expression"]
     assert ".click()" in dom_click_call[3]["expression"]
+
+
+def test_hover_ref_dispatches_mouse_moved_and_dom_mouseover_fallback():
+    bridge = FakeBridge()
+    store = ElementStore()
+    store.set_elements(
+        1,
+        [
+            ElementRef(
+                ref="@e2",
+                backend_node_id=2,
+                tag="button",
+                name="More tools",
+                bounds={"x": 100, "y": 200, "width": 80, "height": 30},
+            )
+        ],
+    )
+    engine = ActionEngine(cast(Any, bridge), store, state_engine=cast(Any, None))
+
+    result = asyncio.run(engine.hover_ref(1, "@e2"))
+
+    assert result.ok is True
+    methods = [call[2] for call in bridge.calls if call[0] == "executeCdp"]
+    assert methods == ["Input.dispatchMouseEvent", "Runtime.evaluate"]
+    mouse_call = bridge.calls[0]
+    assert mouse_call[3]["type"] == "mouseMoved"
+    assert mouse_call[3]["x"] == 140
+    assert mouse_call[3]["y"] == 215
+    dom_hover_call = bridge.calls[-1]
+    assert "mouseover" in dom_hover_call[3]["expression"]
+    assert "mousemove" in dom_hover_call[3]["expression"]
