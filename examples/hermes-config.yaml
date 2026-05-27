@@ -1,0 +1,8 @@
+# ~/.hermes/config.yaml — add this block under mcp_servers:
+mcp_servers:
+  browzer:
+    command: /home/rudi/Workspace/browzer/.venv/bin/python
+    args:
+      - -m
+      - browzer
+    timeout: 120
