@@ -1,4 +1,6 @@
 """Vision mediation layer — screenshot capture and LLM-powered observation."""
 
-# Vision client: OpenAI-compatible vision API
-# Observe: screenshot + instruction → text description
+from browzer.vision.client import VisionClient
+from browzer.vision.observe import observe
+
+__all__ = ["VisionClient", "observe"]
