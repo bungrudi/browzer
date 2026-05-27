@@ -50,8 +50,38 @@ class ActionEngine:
             )
 
         try:
-            x = float(bounds.get("x", 0)) + (float(bounds.get("width", 0)) / 2)
-            y = float(bounds.get("y", 0)) + (float(bounds.get("height", 0)) / 2)
+            rect_x = float(bounds.get("x", 0))
+            rect_y = float(bounds.get("y", 0))
+            rect_w = float(bounds.get("width", 0))
+            rect_h = float(bounds.get("height", 0))
+            viewport = await self.bridge.execute_cdp(
+                tab_id,
+                "Runtime.evaluate",
+                {
+                    "expression": "JSON.stringify({width: window.innerWidth, height: window.innerHeight})",
+                    "returnByValue": True,
+                },
+            )
+            viewport_value = viewport.get("result", {}).get("value", "{}")
+            try:
+                viewport_size = __import__("json").loads(viewport_value)
+            except Exception:
+                viewport_size = {}
+            viewport_w = float(viewport_size.get("width", rect_x + rect_w))
+            viewport_h = float(viewport_size.get("height", rect_y + rect_h))
+            visible_left = max(rect_x, 0)
+            visible_top = max(rect_y, 0)
+            visible_right = min(rect_x + rect_w, viewport_w - 1)
+            visible_bottom = min(rect_y + rect_h, viewport_h - 1)
+            if visible_right < visible_left or visible_bottom < visible_top:
+                return ActionResult(
+                    ok=False,
+                    action="click",
+                    ref=ref,
+                    details="Element bounds are outside the visible viewport",
+                )
+            x = visible_left + ((visible_right - visible_left) / 2)
+            y = visible_top + ((visible_bottom - visible_top) / 2)
             await self.bridge.execute_cdp(
                 tab_id,
                 "Input.dispatchMouseEvent",

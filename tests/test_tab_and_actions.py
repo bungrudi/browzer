@@ -70,6 +70,7 @@ def test_click_ref_dispatches_mouse_and_dom_click_fallback():
     assert result.ok is True
     methods = [call[2] for call in bridge.calls if call[0] == "executeCdp"]
     assert methods == [
+        "Runtime.evaluate",
         "Input.dispatchMouseEvent",
         "Input.dispatchMouseEvent",
         "Runtime.evaluate",
