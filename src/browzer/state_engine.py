@@ -232,7 +232,7 @@ JSON.stringify((() => {
     if (!style || style.display === 'none' || style.visibility === 'hidden') return false;
     const r = el.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) return false;
-    return r.bottom >= 0 && r.right >= 0 && r.top <= window.innerHeight && r.left <= window.innerWidth;
+    return r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth;
   };
   const isInteractive = (el) => {
     const tag = (el.tagName || '').toLowerCase();
