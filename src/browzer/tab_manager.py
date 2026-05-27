@@ -174,11 +174,7 @@ class TabManager:
     # ------------------------------------------------------------------
 
     async def _claim_and_attach(self, tab_id: int) -> None:
-        """Claim ownership and attach debugger. Idempotent on existing."""
-        existing = self._tabs.get(tab_id)
-        if existing and existing.owned and existing.attached:
-            return
-
+        """Claim ownership and attach debugger. Always re-attaches."""
         try:
             await self._bridge.claim_user_tab(tab_id)
         except BridgeError as exc:
