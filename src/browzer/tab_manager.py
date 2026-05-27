@@ -150,13 +150,13 @@ class TabManager:
         return await self._create_and_navigate(url)
 
     async def _create_and_navigate(self, url: str) -> TabInfo:
-        """Create a new tab, navigate to URL, claim, and attach."""
+        """Create a new tab, navigate to URL, then claim and attach."""
         raw = await self._bridge.create_tab()
         tab_id = raw["id"]
         logger.info("Created tab %d", tab_id)
 
-        await self._claim_and_attach(tab_id)
         await self.navigate(tab_id, url)
+        await self._claim_and_attach(tab_id)
 
         info = TabInfo(
             id=tab_id,
