@@ -2,13 +2,13 @@
 
 ## How We Work
 
-**Two-model pipeline with Codex delegation:**
+**Three-model pipeline with Codex delegation:**
 
 | Phase | Model | Actor | Role |
 |-------|-------|-------|------|
-| Plan | gpt-5.5 | Hermes (you) | Read PRD, decompose into tasks, write implementation plan docs |
+| Plan | deepseek-v4-pro (xhigh) | Hermes (you) | Read PRD, decompose into tasks, write implementation plan docs |
 | Implement | gpt-5.3-codex | Codex CLI (delegated) | Write code, run tests, iterate until tests pass |
-| Review | gpt-5.5 | Hermes (you) | Review diffs, verify spec compliance, final commit |
+| Review | deepseek-v4-pro (xhigh) | Hermes (you) | Review diffs, verify spec compliance, final commit |
 
 Codex CLI is invoked via terminal with PTY:
 
@@ -25,7 +25,7 @@ terminal(
 For smaller tasks use foreground mode; for larger tasks use background with notify_on_complete.
 
 **Workflow per task:**
-1. Hermes (gpt-5.5) reads the plan, picks next task, writes a detailed codex prompt
+1. Hermes (deepseek-v4-pro xhigh) reads the plan, picks next task, writes a detailed codex prompt
 2. Hermes dispatches codex CLI (gpt-5.3-codex) with the prompt
 3. Codex outputs a git commit. Hermes reviews the diff, runs full tests, verifies spec
 4. If issues: Hermes writes a fix prompt, re-dispatches codex
@@ -46,18 +46,19 @@ Never hand-code implementation — always delegate to codex CLI for code generat
 1. **Transport layer** — Codex Chrome bridge client (ws://127.0.0.1:9224 JSON-RPC). Tab ownership, CDP execution, WebSocket lifecycle.
 2. **Semantic browser layer** — DOM/accessibility → compact indexed page state with refs (@e1, @e2). Action engine (click/fill by ref), extract engine.
 3. **Vision mediation layer** — Screenshot capture + configurable OpenAI-compatible vision LLM client. Two modes: mediated (vision describes for text models) and direct (vision drives actions).
+   - **Default vision model: gemini-2.5-flash-lite** (cheap, fast, vision-capable, good for page description and element finding)
+   - Configurable via BROWZER_VISION_BASE_URL / BROWZER_VISION_MODEL
 
 ## v0.1 Must-Have Features (priority order)
 
 ### Feature 1: Vision-enriched text path
 Non-vision models (DeepSeek) get vision-augmented text snapshots.
 - `browser_state` → indexed elements + page text
-- `browser_observe` → screenshot + vision LLM → text description
+- `browser_observe` → screenshot + vision LLM (gemini-2.5-flash-lite) → text description
 - `browser_click_ref` / `browser_fill_ref` → actions by ref
-- Vision LLM configurable via env: BROWZER_VISION_BASE_URL, BROWZER_VISION_MODEL, BROWZER_VISION_API_KEY
 
 ### Feature 2: Vision-first path
-Vision-capable models (GPT-5.5, Gemini) drive browser with screenshots.
+Vision-capable models drive browser with screenshots + gemini-2.5-flash-lite.
 - `browser_start(mode="vision")` → screenshot + DOM
 - `browser_act(instruction)` → vision LLM → coordinate/ref actions
 
@@ -75,14 +76,14 @@ Reuse-first policy, track owned/created tabs, safe cleanup (dry-run default). Ne
 ## Tech Stack
 - Python 3.11+, FastMCP (`mcp` package)
 - `websockets` for Codex bridge
-- `httpx` + `openai` for vision client
+- `httpx` + `openai` for vision client (targeting Gemini via OpenAI-compatible endpoint)
 - Venv: ~/Workspace/browzer/.venv (create with `uv venv` if not present)
 
 ## Constraints
 - MCP server for Hermes. Drop-in replacement for codex-chrome MCP.
 - Connects to existing Chrome via Codex extension bridge (port 9224).
 - One MCP connection = one browser session.
-- Vision LLM: any OpenAI-compatible endpoint. Test with codex-lb gpt-5.5 at http://127.0.0.1:2455/v1.
+- Vision LLM default: gemini-2.5-flash-lite. Any OpenAI-compatible endpoint.
 - Hermes config entry in ~/.hermes/config.yaml under mcp_servers.browzer.
 
 ## Open Design Decisions
