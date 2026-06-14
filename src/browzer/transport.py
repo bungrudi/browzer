@@ -56,9 +56,19 @@ class CodexTransport:
         await transport.disconnect()
     """
 
-    def __init__(self, url: str, session_id: str) -> None:
+    def __init__(
+        self,
+        url: str,
+        session_id: str,
+        rpc_timeout: float = 30.0,
+        connect_timeout: float = 10.0,
+        max_connect_attempts: int = 5,
+    ) -> None:
         self.url = url
         self.session_id = session_id
+        self.rpc_timeout = rpc_timeout
+        self.connect_timeout = connect_timeout
+        self.max_connect_attempts = max_connect_attempts
         self._ws: ClientConnection | None = None
         self._lock = asyncio.Lock()
         self._request_id: int = 0
@@ -74,26 +84,42 @@ class CodexTransport:
     async def connect(self) -> None:
         """Connect to the bridge WebSocket and start the reader loop.
 
-        Uses exponential backoff on connection failure.
+        Uses exponential backoff on connection failure, with a finite retry
+        limit so MCP startup reports a clear failure instead of hanging forever.
         """
-        while True:
+        attempts = 0
+        last_error: Exception | None = None
+        while attempts < self.max_connect_attempts:
+            attempts += 1
             try:
                 logger.info("Connecting to Codex bridge at %s", self.url)
-                self._ws = await websockets.connect(self.url)
+                self._ws = await asyncio.wait_for(
+                    websockets.connect(self.url), timeout=self.connect_timeout
+                )
                 self._backoff = INITIAL_BACKOFF
                 self._reader_task = asyncio.create_task(self._reader_loop())
                 logger.info("Connected to Codex bridge")
                 return
-            except OSError as exc:
+            except (OSError, asyncio.TimeoutError) as exc:
+                last_error = exc
+                if attempts >= self.max_connect_attempts:
+                    break
                 logger.warning(
-                    "Bridge connection failed (%s), retrying in %.1fs",
+                    "Bridge connection failed (%s), retrying in %.1fs (%d/%d)",
                     exc,
                     self._backoff,
+                    attempts,
+                    self.max_connect_attempts,
                 )
                 await asyncio.sleep(self._backoff)
                 self._backoff = min(
                     self._backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF
                 )
+
+        raise TransportError(
+            f"Failed to connect to Codex bridge at {self.url} after "
+            f"{self.max_connect_attempts} attempts"
+        ) from last_error
 
     async def disconnect(self) -> None:
         """Close the WebSocket connection and clean up."""
@@ -174,8 +200,21 @@ class CodexTransport:
                 raise TransportError(f"WebSocket closed: {exc}") from exc
 
         try:
-            result = await fut
+            result = await asyncio.wait_for(fut, timeout=self.rpc_timeout)
             return result
+        except asyncio.TimeoutError as exc:
+            logger.warning(
+                "RPC %s (id=%d) timed out after %.1fs; resetting bridge connection",
+                method,
+                req_id,
+                self.rpc_timeout,
+            )
+            async with self._lock:
+                self._pending.pop(req_id, None)
+            await self.disconnect()
+            raise TransportError(
+                f"RPC {method} timed out after {self.rpc_timeout:.1f}s"
+            ) from exc
         finally:
             async with self._lock:
                 self._pending.pop(req_id, None)
